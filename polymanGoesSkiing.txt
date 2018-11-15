@@ -1,0 +1,483 @@
+#include<windows.h>
+#include<GL/glut.h>
+#include<stdlib.h>
+#include<math.h>
+#include<conio.h>
+#include<stdio.h>
+#include <iostream>
+#include <iomanip>
+#include <GL/glut.h>
+using namespace std;
+
+//This is CubeandBiezierStudentDemo.cpp
+/*This program demonstrates rendering a three dimensional cube in OpenGL. The program renders the cube in
+solid form using the function Enable (GL_DEPTH_TEST) to activate the z-buffer to hide hidden surfaces. The surfaces of the
+square are rendered by glBegin(GL_POLYGON). All faces have been loaded counterclockwise.
+It also demonstrated a Biexier, path for the cube to follow. The biezier path
+is generated with 6 control points along the path from the biezier function clacbiezu(float, int, float[])*/
+
+
+//*******************Global Values*************************************
+/*These values are global because the timing call back functions will only take certain perameters hence
+their needs to be global variables to communicate with these functions.*/
+
+float static thetaX = 0.0, thetaY = 180.0, thetaZ = 0.0;//global angular value for rotation
+float scale1 = 1.0; //global scaling value for square
+float dx = 0.0, dy = 0.0, dz = 0.0; //global movement value for dx and dy
+float xctrl[10], yctrl[10], uval = 0.0; //these are for the Biezier Control point for the path of the cube
+float calcbiezu(float, int, float[]); //calculates biez at a point u
+int fact(int); //calculates factorial
+int frame = 1.0;
+
+void RenderScene(void); //this is a function to draw a square in an opened window
+void loadicon(float[][15], float[][15], float[][15]);
+
+/*Loads the square icon*/
+
+void drawicon(float[][15], float[][15], float[][15]);//draws the icon
+
+void settrans2(void); /*sets the translation matrix for the square
+					  transformation matrix for desired scale, rotation, new pos*/
+
+					  /*Performs the transformation on the icon pattern*/
+
+void SetupRC(void); //sets up the clear color
+void TimerFunction(int); //this call back function is call each 30 ms and changes the location, scale, and rotation of the square
+
+//main program
+
+int main(int argc, char** argv) {
+	//set up window title
+	char header[] = "Biezer Cube Movement byt Joe Student";
+
+	glutInit(&argc, argv);
+	//Set up the display mode with a double buffer and a depth buffer and RGB colors
+	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
+	SetupRC();
+	//Initialize window size and position
+	glutInitWindowSize(1080, 740);
+	glutInitWindowPosition(0, 0);
+	//Open and label window
+	glutCreateWindow(header);
+	glutDisplayFunc(RenderScene);
+	glutTimerFunc(500, TimerFunction, 1);
+	//now draw the scene
+
+	glutMainLoop();
+
+	return 0;
+}
+//**************RENDERSCENE Function*****************************
+void RenderScene(void) {
+	float x[20][15], y[20][15], z[20][15]; /*These variables hold the pattern for the square icon.
+														  Note that x, y, z hold the cube and lx, ly, lz hold a
+														  line through the cube*/
+	float x1, y1, xdel = 0.25;
+
+	float Uval; //Biezier u value going from 0 to 1 to drive the cube. The cube values are x(u), y(u) set up the control points
+
+	xctrl[0] = 0.0; yctrl[0] = 6.0; //left end point
+	xctrl[1] = 8.0; yctrl[1] = 1.0; //point 1
+	xctrl[2] = 4.0; yctrl[2] = 9.0; //point 2
+	xctrl[3] = -1.0; yctrl[3] = 8.0; //point 3
+	xctrl[4] = 2.0; yctrl[4] = 3.0; //point 4
+	xctrl[5] = 10.0; yctrl[5] = 0.5; //right end point
+
+	int ncontrolpts = 10, i;
+	//clear the window with the current background color
+
+	cout << "in renderscene" << endl;
+
+	glClearColor(0.7, 1.0, 1.0, 1.0); //set clear color to black
+	glClear(GL_COLOR_BUFFER_BIT); //note clear color was set in SetupRC
+	glEnable(GL_DEPTH_TEST);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glLoadIdentity();
+	//set the current drawing color to white
+	glColor3f(1.0, 1.0, 1.0);
+	//set the viewport to the window dimensions
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	//set the viewport to the window dimensions
+	glViewport(0, 0, 1080, 740);
+	//establish the clipping volume in user coordinates
+	glOrtho(-2.0, 11.0, -2.0, 11.0, 5.0, -5.0);
+	//*******THE following draws the biezier curve created by the control points and the axis for the control points
+	//set the drawing color to white
+	glColor3f(1.0, 1.0, 1.0);
+	glBegin(GL_POLYGON);
+	//set end points of x-axis
+	glVertex2f(0.0, -3.0); //x-left bottom
+	glVertex2f(-3.0, -3.0); //x-right bottom 
+	glVertex2f(-3.0, 4.5); //x-right top
+	glVertex2f(0.0, 4.5); //x-left top
+	glEnd();
+	glBegin(GL_POLYGON);
+	//set end points of x-axis
+	glVertex2f(10.0, -2.0); //x-left bottom
+	glVertex2f(0.0, -3.0); //x-right bottom 
+	glVertex2f(0.0, 4.5); //x-right top
+	glEnd();
+	glBegin(GL_POLYGON);
+	//set end points of x-axis
+	glVertex2f(12.0, -3.0); //x-left bottom
+	glVertex2f(8.0, -3.0); //x-right bottom 
+	glVertex2f(8.0, -1.0); //x-right top
+	glVertex2f(12.0, -1.0); //x-left top
+	glEnd();
+	//DRAW THE BIEZIER CURVE FOR THE CUBE TO FOLLOW
+	//change the draw to blue
+
+	//glColor3f(0.0, 0.0, 1.0);
+	//glBegin(GL_LINE_STRIP);
+	//Uval = 0.0;
+	//for (i = 0; i <= 20; i++) {
+	//	//calculate the x,y coordinates for this uval
+	//	glVertex2f(calcbiezu(Uval, 5, xctrl), calcbiezu(Uval, 5, yctrl));
+	//	Uval += 0.05;
+
+	//}
+	//glEnd();
+
+	//***********************This is the end of the biezier curve draw************
+	loadicon(x, y, z);
+	/*Draw the cube and line NOTE THAT THE BIEZIER X(u), Y(u) POINTS ARE CALCULATED IN settrans2()*/
+
+	settrans2();
+	//now draw the square
+	drawicon(x, y, z);
+
+	glEnd();
+
+	glutSwapBuffers();
+
+	return;
+}; // end of render scene
+//*******Load Icon Function******
+void loadicon(float polymanX[][15], float polymanY[][15], float polymanZ[][15]) {
+	/*load front face*/
+	//TOP OF POLYMAN BODY
+	//front top of polyman
+	polymanX[0][0] = -1.0;		polymanY[0][0] = 0.0;		polymanZ[0][0] = -1.0;//front far left point
+	polymanX[0][1] = -0.50;		polymanY[0][1] = 0.50;		polymanZ[0][1] = -1.0;//front top left point
+	polymanX[0][2] = 0.50;		polymanY[0][2] = 0.50;		polymanZ[0][2] = -1.0;//front top right point
+	polymanX[0][3] = 1.0;		polymanY[0][3] = 0.0;		polymanZ[0][3] = -1.0;//front far right point
+
+	//back top of polyman
+	polymanX[1][0] = 1.0;		polymanY[1][0] = 0.0;		polymanZ[1][0] = -0.50;//back far left point
+	polymanX[1][1] = 0.50;		polymanY[1][1] = 0.50;		polymanZ[1][1] = -0.50;//back top left point
+	polymanX[1][2] = -0.50;		polymanY[1][2] = 0.50;		polymanZ[1][2] = -0.50;//back top right point
+	polymanX[1][3] = -1.0;		polymanY[1][3] = 0.0;		polymanZ[1][3] = -0.50;//back far right point
+	/*load the color on the front face red*/
+	polymanX[1][4] = 1.0;		polymanY[1][4] = 0.0;		polymanZ[1][4] = 0.0;
+
+
+
+	/*load the back side face*/
+	//front bottom of polyman
+	polymanX[2][0] = 1.0;		polymanY[2][0] = 0.0;		polymanZ[2][0] = -1.0; //front far right point
+	polymanX[2][1] = 0.50;		polymanY[2][1] = -0.50;		polymanZ[2][1] = -1.0; // front bottom right point
+	polymanX[2][2] = -0.50;		polymanY[2][2] = -0.50;		polymanZ[2][2] = -1.0; //front bottom left point
+	polymanX[2][3] = -1.0;		polymanY[2][3] = 0.0;		polymanZ[2][3] = -1.0; // front far left point
+//open mouth part front side
+	polymanX[2][4] = -0.25;		polymanY[2][4] = 0.0;		polymanZ[2][4] = -1.0;
+
+	//back bottom of polyman
+	polymanX[3][0] = -0.50;		polymanY[3][0] = -0.50;		polymanZ[3][0] = -0.50; //back far right point
+	polymanX[3][1] = 0.50;		polymanY[3][1] = -0.50;		polymanZ[3][1] = -0.50; //back bottom right point
+	polymanX[3][2] = 1.0;		polymanY[3][2] = 0.0;		polymanZ[3][2] = -0.50;//back bottm left point
+	polymanX[3][3] = -1.0;		polymanY[3][3] = 0.0;		polymanZ[3][3] = -0.50;//back far left point
+	//open mouth back side
+	polymanX[3][4] = -0.25;		polymanY[3][4] = 0.0;		polymanZ[3][4] = -0.50;
+
+	//polymans eyes
+	//front left eye
+	polymanX[4][0] = -0.50;		polymanY[4][0] = 0.25;		polymanZ[4][0] = -1.001;//top left point
+	polymanX[4][1] = -0.40;		polymanY[4][1] = 0.25;		polymanZ[4][1] = -1.001;//top right point
+	polymanX[4][2] = -0.40;		polymanY[4][2] = 0.125;		polymanZ[4][2] = -1.001;//bottom right point
+	polymanX[4][3] = -0.50;		polymanY[4][3] = 0.125;		polymanZ[4][3] = -1.001;//bottom left point
+	/*load the color on the back side blue*/
+	polymanX[4][4] = 0.0;		polymanY[4][4] = 0.0;		polymanZ[4][4] = 1.0;
+
+	//back right eye
+	polymanX[5][0] = -0.50;		polymanY[5][0] = 0.25;		polymanZ[5][0] = -0.499;//top left point
+	polymanX[5][1] = -0.50;		polymanY[5][1] = 0.125;		polymanZ[5][1] = -0.499;//top right point
+	polymanX[5][2] = -0.40;		polymanY[5][2] = 0.125;		polymanZ[5][2] = -0.499;//bottom right point
+	polymanX[5][3] = -0.40;		polymanY[5][3] = 0.25;		polymanZ[5][3] = -0.499;//bottom left point
+	/*load the color on the back side blue*/
+	polymanX[5][4] = 0.0;		polymanY[5][4] = 0.0;		polymanZ[5][4] = 1.0;
+
+	//FEET
+	//regular feet
+	//left foot
+	polymanX[6][0] = 0.0;		polymanY[6][0] = -0.50;		polymanZ[6][0] = -0.95;//begin leg
+	polymanX[6][1] = 0.0;		polymanY[6][1] = -1.0;		polymanZ[6][1] = -0.95;//end leg
+	polymanX[6][2] = -0.25;		polymanY[6][2] = -1.0;		polymanZ[6][2] = -0.95;//end foot
+	
+	//right foot
+	polymanX[7][0] = 0.0;		polymanY[7][0] = -0.50;		polymanZ[7][0] = -0.55;//begin leg
+	polymanX[7][1] = 0.0;		polymanY[7][1] = -1.0;		polymanZ[7][1] = -0.55;//end leg
+	polymanX[7][2] = -0.35;		polymanY[7][2] = -1.0;		polymanZ[7][2] = -0.55;//end foot
+
+	//skiis
+	//right ski
+	//bottom of ski
+	polymanX[8][0] = 1.0;		polymanY[8][0] = -1.0;		polymanZ[8][0] = -0.45;//begin leg
+	polymanX[8][1] = -1.0;		polymanY[8][1] = -1.0;		polymanZ[8][1] = -0.45;//end leg
+	polymanX[8][2] = -1.0;		polymanY[8][2] = -1.1;		polymanZ[8][2] = -0.60;//end foot
+	polymanX[8][3] = 1.0;		polymanY[8][3] = -1.1;		polymanZ[8][3] = -0.60;//bottom left point
+	//top of ski
+	polymanX[9][0] = -1.0;		polymanY[9][0] = -1.0;		polymanZ[9][0] = -0.45;//begin leg
+	polymanX[9][1] = 1.0;		polymanY[9][1] = -1.0;		polymanZ[9][1] = -0.45;//end leg
+	polymanX[9][2] = 1.0;		polymanY[9][2] = -1.1;		polymanZ[9][2] = -0.60;//end foot
+	polymanX[9][3] = -1.0;		polymanY[9][3] = -1.1;		polymanZ[9][3] = -0.60;//bottom left point
+
+		//left ski
+	//bottom of ski
+	polymanX[11][0] = 1.0;		polymanY[11][0] = -1.0;		polymanZ[11][0] = -0.85;//begin leg
+	polymanX[11][1] = -1.0;		polymanY[11][1] = -1.0;		polymanZ[11][1] = -0.85;//end leg
+	polymanX[11][2] = -1.0;		polymanY[11][2] = -1.1;		polymanZ[11][2] = -1.0;//end foot
+	polymanX[11][3] = 1.0;		polymanY[11][3] = -1.1;		polymanZ[11][3] = -1.0;//bottom left point
+	//top of ski
+	polymanX[12][0] = -1.0;		polymanY[12][0] = -1.0;		polymanZ[12][0] = -0.85;//begin leg
+	polymanX[12][1] = 1.0;		polymanY[12][1] = -1.0;		polymanZ[12][1] = -0.85;//end leg
+	polymanX[12][2] = 1.0;		polymanY[12][2] = -1.1;		polymanZ[12][2] = -1.0;//end foot
+	polymanX[12][3] = -1.0;		polymanY[12][3] = -1.1;		polymanZ[12][3] = -1.0;//bottom left point
+
+
+	
+
+	//mouth
+	polymanX[10][0] = -0.50;		polymanY[10][0] = -0.125;		polymanZ[10][0] = -1.0;
+	polymanX[10][1] = -0.75;		polymanY[10][1] = -0.25;		polymanZ[10][1] = -1.0;
+	polymanX[10][2] = -0.75;		polymanY[10][2] = -0.25;		polymanZ[10][2] = -.50;
+	polymanX[10][3] = -0.50;		polymanY[10][3] = -0.125;		polymanZ[10][3] = -.50;
+
+	return;
+
+	/*end of load icon*/
+}
+/******************************Function drawicon********************/
+void drawicon(float x[][15], float y[][15], float z[][15]) {
+	/*this function draws the cube at the transformed position*/
+
+	int i, face;
+
+		//note that the cube is with front face counterclockwise
+		glFrontFace(GL_CW);
+		//set the back face as the cull face
+		glCullFace(GL_BACK);
+		//enable the culling or the back face.
+		glEnable(GL_CULL_FACE);
+
+		//render each face of the cube
+		glShadeModel(GL_SMOOTH);
+		//front top
+		glColor3f(1.0, 1.0, 0.5);
+		glBegin(GL_POLYGON);
+		glVertex3f(x[0][0], y[0][0], z[0][0]);
+		glVertex3f(x[0][1], y[0][1], z[0][1]);
+		glVertex3f(x[0][2], y[0][2], z[0][2]);
+		glVertex3f(x[0][3], y[0][3], z[0][3]);
+		glEnd();
+		//back top
+		glBegin(GL_POLYGON);
+		glVertex3f(x[1][0], y[1][0], z[1][0]);
+		glVertex3f(x[1][1], y[1][1], z[1][1]);
+		glVertex3f(x[1][2], y[1][2], z[1][2]);
+		glVertex3f(x[1][3], y[1][3], z[1][3]);
+		glEnd();
+		//top top
+		glBegin(GL_POLYGON);
+		glVertex3f(x[0][1], y[0][1], z[0][1]);
+		glVertex3f(x[1][2], y[1][2], z[1][2]);
+		glVertex3f(x[1][1], y[1][1], z[1][1]);
+		glVertex3f(x[0][2], y[0][2], z[0][2]);
+		glEnd();
+		//front face, left side angle
+		glBegin(GL_POLYGON);
+		glVertex3f(x[0][0], y[0][0], z[0][0]);
+		glVertex3f(x[1][3], y[1][3], z[1][3]);
+		glVertex3f(x[1][2], y[1][2], z[1][2]);
+		glVertex3f(x[0][1], y[0][1], z[0][1]);
+		glEnd();
+		//top have of the back side, right side angle
+		glBegin(GL_POLYGON);
+		glVertex3f(x[0][3], y[0][3], z[0][3]);
+		glVertex3f(x[0][2], y[0][2], z[0][2]);
+		glVertex3f(x[1][1], y[1][1], z[1][1]);
+		glVertex3f(x[1][0], y[1][0], z[1][0]);
+		glEnd();
+		//bottom of top half/roof of mouth
+		glColor3f(0.7, 0.0, 0.7);
+		glBegin(GL_POLYGON);
+		glVertex3f(x[0][0], y[0][0], z[0][0]);
+		glVertex3f(x[0][3], y[0][3], z[0][3]);
+		glVertex3f(x[1][0], y[1][0], z[1][0]);
+		glVertex3f(x[1][3], y[1][3], z[1][3]);
+		glEnd();
+		//#########BOTTOM HALF OF POLYMAN MOUTH OPEN
+		//front bottom 
+		glColor3f(1.0, 1.0, 0.5);
+		glBegin(GL_POLYGON);
+		glVertex3f(x[2][0], y[2][0], z[2][0]);
+		glVertex3f(x[2][1], y[2][1], z[2][1]);
+		glVertex3f(x[2][2], y[2][2], z[2][2]);
+		glVertex3f(x[2][4], y[2][4], z[2][4]);
+		glEnd();
+		//back bottom
+		glBegin(GL_POLYGON);
+		glVertex3f(x[3][0], y[3][0], z[3][0]);
+		glVertex3f(x[3][1], y[3][1], z[3][1]);
+		glVertex3f(x[3][2], y[3][2], z[3][2]);
+		glVertex3f(x[3][4], y[3][4], z[3][4]);
+		glEnd();
+		//back bottom right side angle
+		glBegin(GL_POLYGON);
+		glVertex3f(x[2][0], y[2][0], z[2][0]);
+		glVertex3f(x[3][2], y[3][2], z[3][2]);
+		glVertex3f(x[3][1], y[3][1], z[3][1]);
+		glVertex3f(x[2][1], y[2][1], z[2][1]);
+		glEnd();
+		glColor3f(1.0, 0.0, 0.7);
+		//back face/mouth left side angle
+		glBegin(GL_POLYGON);
+		glVertex3f(x[2][4], y[2][4], z[2][4]);
+		glVertex3f(x[2][2], y[2][2], z[2][2]);
+		glVertex3f(x[3][0], y[3][0], z[3][0]);
+		glVertex3f(x[3][4], y[3][4], z[3][4]);
+		glEnd();
+		//bottom 
+		glColor3f(1.0, 1.0, 0.5);
+		glBegin(GL_POLYGON);
+		glVertex3f(x[2][2], y[2][2], z[2][2]);
+		glVertex3f(x[2][1], y[2][1], z[2][1]);
+		glVertex3f(x[3][1], y[3][1], z[3][1]);
+		glVertex3f(x[3][0], y[3][0], z[3][0]);
+		glEnd();
+		//EYES AND LEGS
+		//left fronteye
+		glColor3f(0.0, 0.0, 0.0);
+		glBegin(GL_POLYGON);
+		glVertex3f(x[4][0], y[4][0], z[4][0]);
+		glVertex3f(x[4][1], y[4][1], z[4][1]);
+		glVertex3f(x[4][2], y[4][2], z[4][2]);
+		glVertex3f(x[4][3], y[4][3], z[4][3]);
+		glEnd();
+		//right backeye
+		glColor3f(0.0, 0.0, 0.0);
+		glBegin(GL_POLYGON);
+		glVertex3f(x[5][0], y[5][0], z[5][0]);
+		glVertex3f(x[5][1], y[5][1], z[5][1]);
+		glVertex3f(x[5][2], y[5][2], z[5][2]);
+		glVertex3f(x[5][3], y[5][3], z[5][3]);
+		glEnd();
+		//regular feet
+		//left leg
+		glColor3f(1.0, 0.0, 0.0);
+		glBegin(GL_LINE_STRIP);
+		glVertex3f(x[6][0], y[6][0], z[6][0]);
+		glVertex3f(x[6][1], y[6][1], z[6][1]);
+		glVertex3f(x[6][2], y[6][2], z[6][2]);
+		glEnd();
+		//right leg
+		glColor3f(1.0, 0.0, 0.0);
+		glBegin(GL_LINE_STRIP);
+		glVertex3f(x[7][0], y[7][0], z[7][0]);
+		glVertex3f(x[7][1], y[7][1], z[7][1]);
+		glVertex3f(x[7][2], y[7][2], z[7][2]);
+		glEnd();
+		//right ski
+		glColor3f(0.0, 0.0, 0.0);
+		glBegin(GL_POLYGON);
+		glVertex3f(x[8][0], y[8][0], z[8][0]);
+		glVertex3f(x[8][1], y[8][1], z[8][1]);
+		glVertex3f(x[8][2], y[8][2], z[8][2]);
+		glVertex3f(x[8][3], y[8][3], z[8][3]);
+		glEnd();
+		glColor3f(0.0, 0.0, 0.0);
+		glBegin(GL_POLYGON);
+		glVertex3f(x[9][0], y[9][0], z[9][0]);
+		glVertex3f(x[9][1], y[9][1], z[9][1]);
+		glVertex3f(x[9][2], y[9][2], z[9][2]);
+		glVertex3f(x[9][3], y[9][3], z[9][3]);
+		glEnd();
+	
+		//left ski
+		glColor3f(0.0, 0.0, 0.0);
+		glBegin(GL_POLYGON);
+		glVertex3f(x[11][0], y[11][0], z[11][0]);
+		glVertex3f(x[11][1], y[11][1], z[11][1]);
+		glVertex3f(x[11][2], y[11][2], z[11][2]);
+		glVertex3f(x[11][3], y[11][3], z[11][3]);
+		glEnd();
+		glBegin(GL_POLYGON);
+		glVertex3f(x[12][0], y[12][0], z[12][0]);
+		glVertex3f(x[12][1], y[12][1], z[12][1]);
+		glVertex3f(x[12][2], y[12][2], z[12][2]);
+		glVertex3f(x[12][3], y[12][3], z[12][3]);
+		glEnd();
+	glFlush();
+	return;
+}//end of draw icon
+/**************************Function settrans2*********************/
+void settrans2(void) {
+	//sets the translation matrix for the cube
+	cout << "in settrans2" << endl;
+
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+	//set the biezier location for the x,y draw dx(uval), dy(uval), note that the animation for movement is in the TimerFunction
+	dx = calcbiezu(uval, 5, xctrl);
+	dy = calcbiezu(uval, 5, yctrl);
+	glTranslatef(dx, dy, dz);
+	glRotatef(thetaX, 1.0, 0.0, 0.0); //note that the angle theta is in degrees, not radians
+	glRotatef(thetaY, 0.0, 1.0, 0.0);
+	glRotatef(thetaZ, 0.0, 0.0, 1.0);
+	return;
+}
+//***********Function SetupRC****************888
+//Set up the rendering states
+void SetupRC(void) {
+	//this function sets the clear color of an open window and clears the open window
+	//set the clear color to black
+	glClearColor(0.8, 1.0, 1.0, 1.0);
+	return;
+}//end of setupRC
+/************TIMER FUNCTION**************/
+void TimerFunction(int value) {
+	//this call back function is call each 30 ms and changes the location, scale, and rotation 
+	//note that the uval is used to update the Biezier position of the cube x(uval), y(uval). 
+	//the calls to the biezier function are in settrans2() of the square
+	
+	//thetaY += 2.0;
+	
+	if (dx <= 4.5) {
+		thetaZ -= 4.3;	
+	}
+	uval += 0.01;
+	glutPostRedisplay();
+	glutTimerFunc(33, TimerFunction, 1);
+}
+float calcbiezu(float u, int n, float cp[]) {
+	//this function calculates the biezier value at u for the control points cp..
+	float val = 0.0;
+	int i;
+	for (i = 0; i <= n; i++) {
+		val += cp[i] * float(fact(n)) / float((fact(i)*fact(n - i)))*pow(u, float(i))*pow(float(1.0 - u), float(n - i));
+	}
+	return val;
+}
+int fact(int n) {
+	//variable declaration 
+	//this function calculates n!
+
+	int counter, fct = 1;
+	if (n == 0)return 1;
+
+	//for loop block
+	for (int counter = 1; counter <= n; counter++) {
+		fct = fct * counter;
+	}
+	return fct;
+}
